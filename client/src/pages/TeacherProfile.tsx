@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Save, X, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Edit, Save, X, Plus, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import Cropper from 'react-easy-crop'
 
 interface ClassInfo {
   id: string;
@@ -19,6 +20,7 @@ interface ClassInfo {
   grade: string; // College 1st-3rd year or Lycee 1st-3rd year
   hoursPerWeek: number;
   students: number;
+  school: string; // Which school this class belongs to
 }
 
 interface WeeklySchedule {
@@ -38,20 +40,27 @@ export default function TeacherProfile() {
     email: "anas.bellaouali@school.edu",
     phone: "+212 6 12 34 56 78",
     age: 28,
-    status: "Active",
+    gender: "Male",
+    address: "123 Education Street",
+    city: "Ifrane",
+    bio: "Experienced mathematics teacher with 5 years of teaching experience. Passionate about making math accessible and engaging for all students.",
+    experience: 5,
     subject: "Mathematics",
-    schools: ["High School of Science", "Technical Institute"],
+    photo: "",
+    schools: [
+      { name: "Al Akhawayn University", type: "both" },
+      { name: "International School of Morocco", type: "lycee" }
+    ],
     startDate: new Date(2024, 8, 1), // September 1, 2024
     endDate: new Date(2025, 5, 30), // June 30, 2025
-    totalWeeks: 36,
-    photo: ""
+    totalWeeks: 36
   });
 
   const [classes, setClasses] = useState<ClassInfo[]>([
-    { id: "1", name: "1A", level: "College", grade: "1st Year College", hoursPerWeek: 6, students: 24 },
-    { id: "2", name: "2A", level: "College", grade: "2nd Year College", hoursPerWeek: 5, students: 22 },
-    { id: "3", name: "3A", level: "College", grade: "3rd Year College", hoursPerWeek: 4, students: 26 },
-    { id: "4", name: "1B", level: "Lycee", grade: "1st Year Lycee", hoursPerWeek: 6, students: 28 }
+    { id: "1", name: "1A", level: "College", grade: "1st Grade", hoursPerWeek: 6, students: 24, school: "Al Akhawayn University" },
+    { id: "2", name: "2A", level: "College", grade: "2nd Grade", hoursPerWeek: 5, students: 22, school: "Al Akhawayn University" },
+    { id: "3", name: "3A", level: "College", grade: "3rd Grade", hoursPerWeek: 4, students: 26, school: "Al Akhawayn University" },
+    { id: "4", name: "1B", level: "Lycee", grade: "1st Grade", hoursPerWeek: 6, students: 28, school: "International School of Morocco" }
   ]);
 
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule[]>([
@@ -128,15 +137,100 @@ export default function TeacherProfile() {
     classroom: ""
   });
 
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
-
   const [newClass, setNewClass] = useState({
     name: "",
     level: "",
     grade: "",
     hoursPerWeek: 0,
-    students: 0
+    students: 0,
+    school: ""
   });
+
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+
+  // Schools management states
+  const [newSchool, setNewSchool] = useState({ name: "", type: "both" });
+  const [showAddSchool, setShowAddSchool] = useState(false);
+
+  // Course management states
+  const [courses, setCourses] = useState([
+    { id: "1", name: "Mathematics Fundamentals", level: "College", grade: "1st Grade", file: "math-fundamentals.pdf", size: "2.3 MB" },
+    { id: "2", name: "Algebra Basics", level: "Lycee", grade: "2nd Grade", file: "algebra-basics.pdf", size: "1.8 MB" },
+    { id: "3", name: "Geometry Course", level: "College", grade: "3rd Grade", file: "geometry-course.pdf", size: "3.1 MB" }
+  ]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isEditingCourses, setIsEditingCourses] = useState(false);
+  const [newCourse, setNewCourse] = useState({ name: "", level: "", grade: "", file: null as File | null });
+
+  // Photo upload and cropping states
+  const [showPhotoCropper, setShowPhotoCropper] = useState(false);
+  const [photoToCrop, setPhotoToCrop] = useState("");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
+  // Handle photo upload
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setPhotoToCrop(result);
+        setShowPhotoCropper(true);
+        // Reset crop and zoom
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle crop save
+  const handleCropSave = () => {
+    if (!croppedAreaPixels) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = 96;
+      canvas.height = 96;
+      
+      if (ctx) {
+        // Use the cropped area pixels from react-easy-crop
+        const { x, y, width, height } = croppedAreaPixels;
+        
+        // Draw the cropped image
+        ctx.drawImage(
+          img,
+          x, y, width, height,
+          0, 0, 96, 96
+        );
+        
+        const croppedPhoto = canvas.toDataURL('image/jpeg', 0.9);
+        setProfile(prev => ({ ...prev, photo: croppedPhoto }));
+        setShowPhotoCropper(false);
+        setPhotoToCrop("");
+      }
+    };
+    
+    img.src = photoToCrop;
+  };
+
+  // Handle crop cancel
+  const handleCropCancel = () => {
+    setShowPhotoCropper(false);
+    setPhotoToCrop("");
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  };
+
+  // Handle crop complete
+  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
 
   const handleSave = () => {
     setIsEditing(false);
@@ -146,8 +240,64 @@ export default function TeacherProfile() {
   const addClass = () => {
     if (newClass.name && newClass.level && newClass.grade) {
       setClasses([...classes, { ...newClass, id: Date.now().toString() }]);
-      setNewClass({ name: "", level: "", grade: "", hoursPerWeek: 0, students: 0 });
+      setNewClass({ name: "", level: "", grade: "", hoursPerWeek: 0, students: 0, school: "" });
     }
+  };
+
+  const addSchool = () => {
+    if (newSchool.name && newSchool.type) {
+      setProfile(prev => ({
+        ...prev,
+        schools: [...prev.schools, { ...newSchool }]
+      }));
+      setNewSchool({ name: "", type: "both" });
+      setShowAddSchool(false);
+    }
+  };
+
+  const removeSchool = (index: number) => {
+    setProfile(prev => ({
+      ...prev,
+      schools: prev.schools.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Course management functions
+  const handleFileUpload = (files: FileList) => {
+    Array.from(files).forEach(file => {
+      if (file.type === 'application/pdf') {
+        const newCourse = {
+          id: Date.now().toString(),
+          name: file.name.replace('.pdf', ''),
+          level: "College", // Default level
+          grade: "1st Grade", // Default grade
+          file: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        };
+        setCourses(prev => [...prev, newCourse]);
+      }
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
+  };
+
+  const removeCourse = (id: string) => {
+    setCourses(prev => prev.filter(course => course.id !== id));
   };
 
   const removeClass = (id: string) => {
@@ -273,7 +423,7 @@ export default function TeacherProfile() {
     console.log("Updated schedule:", updatedSchedule); // Debug log
     setWeeklySchedule(updatedSchedule);
     setNewScheduleItem({ day: "", from: "", to: "", class: "", classroom: "" });
-    setSelectedTimeSlot(null);
+    setSelectedTimeSlot("");
   };
 
   const removeScheduleItem = (day: string, index: number) => {
@@ -362,6 +512,94 @@ export default function TeacherProfile() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
+      {/* Photo Cropper Modal */}
+      {showPhotoCropper && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Crop Your Photo</h3>
+            <div className="relative w-48 h-48 mx-auto mb-4 border-2 border-gray-300 rounded-full overflow-hidden">
+              <Cropper
+                image={photoToCrop}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                style={{
+                  containerStyle: {
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#f3f4f6'
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-2 mb-4">
+              <label className="block text-sm font-medium">Zoom:</label>
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.1"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button onClick={handleCropSave} className="flex-1">
+                Save
+              </Button>
+              <Button variant="outline" onClick={handleCropCancel} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add School Modal */}
+      {showAddSchool && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Add New School</h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="school-name">School Name</Label>
+                <Input
+                  id="school-name"
+                  value={newSchool.name}
+                  onChange={(e) => setNewSchool(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter school name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="school-type">School Type</Label>
+                <Select value={newSchool.type} onValueChange={(value) => setNewSchool(prev => ({ ...prev, type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select school type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="college">College Only</SelectItem>
+                    <SelectItem value="lycee">Lycee Only</SelectItem>
+                    <SelectItem value="both">Both College & Lycee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex space-x-2 mt-6">
+              <Button onClick={addSchool} className="flex-1">
+                Add School
+              </Button>
+              <Button variant="outline" onClick={() => setShowAddSchool(false)} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Teacher Profile</h1>
         <p className="text-gray-600">Manage your personal information and class schedule</p>
@@ -393,9 +631,31 @@ export default function TeacherProfile() {
                   </AvatarFallback>
                 </Avatar>
                 {isEditing && (
-                  <Button variant="outline" size="sm">
-                    Change Photo
-                  </Button>
+                  <div className="flex flex-col items-center space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      id="photo-upload"
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      className="cursor-pointer bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm"
+                    >
+                      {profile.photo ? "Change Photo" : "Add Photo"}
+                    </label>
+                    {profile.photo && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProfile(prev => ({ ...prev, photo: "" }))}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Remove Photo
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -410,7 +670,7 @@ export default function TeacherProfile() {
                       onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                     />
                   ) : (
-                    <p className="text-gray-800 font-medium">{profile.name}</p>
+                    <p className="text-gray-600">{profile.name}</p>
                   )}
                 </div>
 
@@ -455,6 +715,88 @@ export default function TeacherProfile() {
                   )}
                 </div>
 
+                {(isEditing || profile.gender) && (
+                  <div>
+                    <Label htmlFor="gender">Gender</Label>
+                    {isEditing ? (
+                      <Select value={profile.gender} onValueChange={(value) => setProfile({ ...profile, gender: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-gray-600">{profile.gender}</p>
+                    )}
+                  </div>
+                )}
+
+                {(isEditing || profile.address) && (
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    {isEditing ? (
+                      <Input
+                        id="address"
+                        value={profile.address}
+                        onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.address}</p>
+                    )}
+                  </div>
+                )}
+
+                {(isEditing || profile.city) && (
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    {isEditing ? (
+                      <Input
+                        id="city"
+                        value={profile.city}
+                        onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.city}</p>
+                    )}
+                  </div>
+                )}
+
+                {(isEditing || profile.bio) && (
+                  <div>
+                    <Label htmlFor="bio">Bio</Label>
+                    {isEditing ? (
+                      <Textarea
+                        id="bio"
+                        value={profile.bio}
+                        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                        placeholder="Tell us about yourself..."
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.bio}</p>
+                    )}
+                  </div>
+                )}
+
+                {(isEditing || profile.experience) && (
+                  <div>
+                    <Label htmlFor="experience">Years of Experience</Label>
+                    {isEditing ? (
+                      <Input
+                        id="experience"
+                        type="number"
+                        value={profile.experience}
+                        onChange={(e) => setProfile({ ...profile, experience: parseInt(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.experience} years</p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="subject">Subject</Label>
                   {isEditing ? (
@@ -471,17 +813,79 @@ export default function TeacherProfile() {
                 <div>
                   <Label>Schools</Label>
                   {isEditing ? (
-                    <Textarea
-                      value={profile.schools.join('\n')}
-                      onChange={(e) => setProfile({ ...profile, schools: e.target.value.split('\n') })}
-                      placeholder="Enter schools (one per line)"
-                    />
+                    <div className="space-y-2">
+                      {profile.schools.map((school, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
+                          <span className="text-gray-800 font-medium">{school.name}</span>
+                          <span className="text-sm text-gray-600">({school.type})</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeSchool(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAddSchool(true)}
+                        className="w-full text-left text-sm text-gray-600"
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> Add New School
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-1">
                       {profile.schools.map((school, index) => (
-                        <p key={index} className="text-gray-600">• {school}</p>
+                        <p key={index} className="text-gray-600">• {school.name} ({school.type})</p>
                       ))}
                     </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Academic Year</Label>
+                  {isEditing ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="startDate">Start Date</Label>
+                        <Input
+                          id="startDate"
+                          type="date"
+                          value={profile.startDate.toISOString().split('T')[0]}
+                          onChange={(e) => setProfile({ ...profile, startDate: new Date(e.target.value) })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="endDate">End Date</Label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          value={profile.endDate.toISOString().split('T')[0]}
+                          onChange={(e) => setProfile({ ...profile, endDate: new Date(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">
+                      {profile.startDate.toLocaleDateString()} - {profile.endDate.toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="totalWeeks">Total Weeks</Label>
+                  {isEditing ? (
+                    <Input
+                      id="totalWeeks"
+                      type="number"
+                      value={profile.totalWeeks}
+                      onChange={(e) => setProfile({ ...profile, totalWeeks: parseInt(e.target.value) })}
+                    />
+                  ) : (
+                    <p className="text-gray-600">{profile.totalWeeks} weeks</p>
                   )}
                 </div>
               </div>
@@ -573,85 +977,243 @@ export default function TeacherProfile() {
           </Card>
 
           {/* Classes Management */}
-          <Card className="shadow-sm border border-gray-200">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-800">
-                Classes Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Add New Class */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <Input
-                    placeholder="Class Name (e.g., 1A)"
-                    value={newClass.name}
-                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
-                  />
-                  <Select value={newClass.level} onValueChange={(value) => setNewClass({ ...newClass, level: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="College">College</SelectItem>
-                      <SelectItem value="Lycee">Lycee</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={newClass.grade} onValueChange={(value) => setNewClass({ ...newClass, grade: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Grade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1st Year College">1st Year College</SelectItem>
-                      <SelectItem value="2nd Year College">2nd Year College</SelectItem>
-                      <SelectItem value="3rd Year College">3rd Year College</SelectItem>
-                      <SelectItem value="1st Year Lycee">1st Year Lycee</SelectItem>
-                      <SelectItem value="2nd Year Lycee">2nd Year Lycee</SelectItem>
-                      <SelectItem value="3rd Year Lycee">3rd Year Lycee</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    placeholder="Hours/Week"
-                    value={newClass.hoursPerWeek || ''}
-                    onChange={(e) => setNewClass({ ...newClass, hoursPerWeek: parseInt(e.target.value) || 0 })}
-                  />
-                  <Button onClick={addClass} className="flex items-center">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Class
-                  </Button>
-                </div>
-
-                {/* Classes List */}
-                <div className="space-y-2">
-                  {classes.map((cls) => (
-                    <div key={cls.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div 
-                          className="w-20 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm px-2 cursor-pointer hover:bg-primary/90 transition-colors"
-                          onClick={() => window.location.href = `/classes/${cls.id}`}
-                        >
-                          {cls.name.length > 7 ? `${cls.name.substring(0, 7)}...` : cls.name}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-800">{cls.name}</p>
-                          <p className="text-sm text-gray-600">{cls.grade} • {cls.hoursPerWeek}h/week • {cls.students} students</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeClass(cls.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
+          <div className="lg:col-span-2">
+            <Card className="shadow-sm border border-gray-200">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-gray-800">
+                  Classes Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Add New Class */}
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    {/* First Row: Class Name, Level, Grade */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Input
+                        placeholder="Class Name (e.g., 1A)"
+                        value={newClass.name}
+                        onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                      />
+                      <Select value={newClass.level} onValueChange={(value) => setNewClass({ ...newClass, level: value })}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="College">College</SelectItem>
+                          <SelectItem value="Lycee">Lycee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={newClass.grade} onValueChange={(value) => setNewClass({ ...newClass, grade: value })}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1st Grade">1st Grade</SelectItem>
+                          <SelectItem value="2nd Grade">2nd Grade</SelectItem>
+                          <SelectItem value="3rd Grade">3rd Grade</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Second Row: School, Hours/Week, Add Class Button */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Select value={newClass.school} onValueChange={(value) => setNewClass({ ...newClass, school: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="School" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {profile.schools.map((school, index) => (
+                            <SelectItem key={index} value={school.name}>
+                              {school.name} ({school.type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        placeholder="Hours/Week"
+                        value={newClass.hoursPerWeek || ''}
+                        onChange={(e) => setNewClass({ ...newClass, hoursPerWeek: parseInt(e.target.value) || 0 })}
+                      />
+                      <Button onClick={addClass} className="flex items-center justify-center">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Class
                       </Button>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Classes List */}
+                  <div className="space-y-2">
+                    {classes.map((cls) => (
+                      <div key={cls.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div 
+                            className="w-20 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm px-2 cursor-pointer hover:bg-primary/90 transition-colors"
+                            onClick={() => window.location.href = `/classes/${cls.id}`}
+                          >
+                            {cls.name.length > 7 ? `${cls.name.substring(0, 7)}...` : cls.name}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800">{cls.name}</p>
+                            <p className="text-sm text-gray-600">{cls.grade} • {cls.hoursPerWeek}h/week • {cls.students} students • {cls.school}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeClass(cls.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Course Management */}
+            <Card className="shadow-sm border border-gray-200 mt-8">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-gray-800">
+                  Course Materials
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditingCourses(!isEditingCourses)}
+                >
+                  {isEditingCourses ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {isEditingCourses && (
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Input
+                          placeholder="Course Name"
+                          value={newCourse.name}
+                          onChange={(e) => setNewCourse(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                        <Select value={newCourse.level} onValueChange={(value) => setNewCourse(prev => ({ ...prev, level: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="College">College</SelectItem>
+                            <SelectItem value="Lycee">Lycee</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={newCourse.grade} onValueChange={(value) => setNewCourse(prev => ({ ...prev, grade: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Grade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1st Grade">1st Grade</SelectItem>
+                            <SelectItem value="2nd Grade">2nd Grade</SelectItem>
+                            <SelectItem value="3rd Grade">3rd Grade</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setNewCourse(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+                          className="hidden"
+                          id="course-file-upload"
+                        />
+                        <label
+                          htmlFor="course-file-upload"
+                          className="cursor-pointer bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm"
+                        >
+                          Browse Files
+                        </label>
+                      </div>
+                      <Button onClick={() => {
+                        if (newCourse.name && newCourse.level && newCourse.grade && newCourse.file) {
+                          const newCourseData = {
+                            id: Date.now().toString(),
+                            name: newCourse.name,
+                            level: newCourse.level,
+                            grade: newCourse.grade,
+                            file: newCourse.file.name,
+                            size: `${(newCourse.file.size / (1024 * 1024)).toFixed(1)} MB`
+                          };
+                          setCourses(prev => [...prev, newCourseData]);
+                          setNewCourse({ name: "", level: "", grade: "", file: null });
+                        }
+                      }} className="w-full">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Course
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Course List */}
+                  <div className="flex gap-4 overflow-x-auto pb-4">
+                    {courses.map((course) => (
+                      <div
+                        key={course.id}
+                        className="flex-shrink-0 w-64 bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => {
+                          // Open PDF in new tab/window
+                          const pdfUrl = `/courses/${course.file}`; // This would be the actual PDF URL
+                          window.open(pdfUrl, '_blank');
+                        }}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <FileText className="w-8 h-8 text-red-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-gray-900 truncate">
+                              {course.name}
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {course.level} • {course.grade}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {course.file} • {course.size}
+                            </p>
+                          </div>
+                          {isEditingCourses && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent opening PDF when clicking delete
+                                removeCourse(course.id);
+                              }}
+                              className="flex-shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {courses.length === 0 && !isEditingCourses && (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No course materials uploaded yet</p>
+                      <p className="text-sm">Click edit to add your course materials</p>
+                    </div>
+                  )}
+
+                  {/* Scroll indicator for multiple courses */}
+                  {courses.length > 3 && (
+                    <div className="text-center mt-2">
+                      <p className="text-xs text-gray-400">← Scroll to see more courses →</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
@@ -735,7 +1297,7 @@ export default function TeacherProfile() {
                   {/* Time Slots */}
                   {generateTimeSlots().map((timeSlot) => (
                     <div key={timeSlot} className="grid grid-cols-8 gap-1 mb-1">
-                      <div className="p-2 text-sm text-gray-600 text-center bg-gray-50 rounded">
+                      <div className="p-2 text-sm text-gray-600 text-center bg-gray-50 rounded flex items-center justify-center">
                         {timeSlot}
                       </div>
                       {weeklySchedule.map((day) => {
