@@ -151,7 +151,28 @@ export default function TeacherProfile() {
   };
 
   const removeClass = (id: string) => {
-    setClasses(classes.filter(c => c.id !== id));
+    const classToDelete = classes.find(cls => cls.id === id);
+    const className = classToDelete?.name || 'this class';
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${className}?\n\n` +
+      `⚠️ WARNING: This will permanently delete:\n` +
+      `• All students in this class\n` +
+      `• All schedule entries for this class\n` +
+      `• All grades and assignments\n` +
+      `• All attendance records\n\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (confirmed) {
+      setClasses(classes.filter(cls => cls.id !== id));
+      
+      // Also remove this class from the weekly schedule
+      setWeeklySchedule(prev => prev.map(day => ({
+        ...day,
+        classes: day.classes.filter(cls => cls.class !== classToDelete?.name)
+      })));
+    }
   };
 
   // Time validation functions
@@ -606,8 +627,11 @@ export default function TeacherProfile() {
                   {classes.map((cls) => (
                     <div key={cls.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold">
-                          {cls.name}
+                        <div 
+                          className="w-20 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm px-2 cursor-pointer hover:bg-primary/90 transition-colors"
+                          onClick={() => window.location.href = `/classes/${cls.id}`}
+                        >
+                          {cls.name.length > 7 ? `${cls.name.substring(0, 7)}...` : cls.name}
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">{cls.name}</p>
