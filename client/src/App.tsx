@@ -10,6 +10,7 @@ import Classes from "@/pages/Classes";
 import Attendance from "@/pages/Attendance";
 import Grades from "@/pages/Grades";
 import Assignments from "@/pages/Assignments";
+import TeacherProfile from "@/pages/TeacherProfile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
         <Route path="/attendance" component={Attendance} />
         <Route path="/grades" component={Grades} />
         <Route path="/assignments" component={Assignments} />
+        <Route path="/profile" component={TeacherProfile} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
