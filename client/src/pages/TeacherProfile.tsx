@@ -12,6 +12,7 @@ import { CalendarIcon, Edit, Save, X, Plus, Trash2, FileText } from "lucide-reac
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import Cropper from 'react-easy-crop'
+import { useProfile } from "@/contexts/ProfileContext";
 
 interface ClassInfo {
   id: string;
@@ -34,6 +35,7 @@ interface WeeklySchedule {
 }
 
 export default function TeacherProfile() {
+  const { profilePhoto, setProfilePhoto } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: "Mr. Anas Bellaouali",
@@ -46,7 +48,7 @@ export default function TeacherProfile() {
     bio: "Experienced mathematics teacher with 5 years of teaching experience. Passionate about making math accessible and engaging for all students.",
     experience: 5,
     subject: "Mathematics",
-    photo: "",
+    photo: profilePhoto,
     schools: [
       { name: "Al Akhawayn University", type: "both" },
       { name: "International School of Morocco", type: "lycee" }
@@ -211,6 +213,7 @@ export default function TeacherProfile() {
         
         const croppedPhoto = canvas.toDataURL('image/jpeg', 0.9);
         setProfile(prev => ({ ...prev, photo: croppedPhoto }));
+        setProfilePhoto(croppedPhoto); // Update global profile photo
         setShowPhotoCropper(false);
         setPhotoToCrop("");
       }
@@ -234,6 +237,8 @@ export default function TeacherProfile() {
 
   const handleSave = () => {
     setIsEditing(false);
+    // Sync the profile photo with global state
+    setProfilePhoto(profile.photo);
     // Here you would typically save to backend
   };
 
@@ -624,12 +629,27 @@ export default function TeacherProfile() {
             <CardContent className="space-y-4">
               {/* Profile Photo */}
               <div className="flex flex-col items-center space-y-4">
-                <Avatar className="w-24 h-24">
-                  <AvatarImage src={profile.photo} />
-                  <AvatarFallback className="text-2xl bg-primary text-white">
-                    {profile.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={profile.photo} />
+                    <AvatarFallback className="text-2xl bg-primary text-white">
+                      {profile.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isEditing && profile.photo && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-0 right-0 h-6 w-6 p-0 rounded-full"
+                      onClick={() => {
+                        setProfile(prev => ({ ...prev, photo: "" }));
+                        setProfilePhoto(""); // Clear global profile photo
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
                 {isEditing && (
                   <div className="flex flex-col items-center space-y-2">
                     <input
@@ -645,16 +665,6 @@ export default function TeacherProfile() {
                     >
                       {profile.photo ? "Change Photo" : "Add Photo"}
                     </label>
-                    {profile.photo && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setProfile(prev => ({ ...prev, photo: "" }))}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Remove Photo
-                      </Button>
-                    )}
                   </div>
                 )}
               </div>
