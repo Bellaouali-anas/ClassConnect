@@ -12,6 +12,7 @@ import Attendance from "@/pages/Attendance";
 import Grades from "@/pages/Grades";
 import Assignments from "@/pages/Assignments";
 import TeacherProfile from "@/pages/TeacherProfile";
+import ClassDetail from "@/pages/ClassDetail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/students" component={Students} />
         <Route path="/classes" component={Classes} />
+        <Route path="/classes/:id" component={ClassDetail} />
         <Route path="/attendance" component={Attendance} />
         <Route path="/grades" component={Grades} />
         <Route path="/assignments" component={Assignments} />
