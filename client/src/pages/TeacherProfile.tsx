@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,15 @@ export default function TeacherProfile() {
     endDate: new Date(2025, 5, 30), // June 30, 2025
     totalWeeks: 36
   });
+  
+  // Store the original profile photo to revert changes if needed
+  const [originalProfilePhoto, setOriginalProfilePhoto] = useState(profilePhoto);
+  
+  // Update profile photo when context changes
+  React.useEffect(() => {
+    setProfile(prev => ({ ...prev, photo: profilePhoto }));
+    setOriginalProfilePhoto(profilePhoto);
+  }, [profilePhoto]);
 
   const [classes, setClasses] = useState<ClassInfo[]>([
     { id: "1", name: "1A", level: "College", grade: "1st Grade", hoursPerWeek: 6, students: 24, school: "Al Akhawayn University" },
@@ -213,7 +222,7 @@ export default function TeacherProfile() {
         
         const croppedPhoto = canvas.toDataURL('image/jpeg', 0.9);
         setProfile(prev => ({ ...prev, photo: croppedPhoto }));
-        setProfilePhoto(croppedPhoto); // Update global profile photo
+        // Don't update global profile photo here - only update when user hits save
         setShowPhotoCropper(false);
         setPhotoToCrop("");
       }
@@ -237,9 +246,19 @@ export default function TeacherProfile() {
 
   const handleSave = () => {
     setIsEditing(false);
-    // Sync the profile photo with global state
+    // Update the global profile photo only when user hits save
     setProfilePhoto(profile.photo);
+    // Update the original photo reference
+    setOriginalProfilePhoto(profile.photo);
     // Here you would typically save to backend
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    // Revert profile photo to original state
+    setProfile(prev => ({ ...prev, photo: originalProfilePhoto }));
+    // Reset any other profile changes to their original state
+    // (You could add more revert logic here if needed)
   };
 
   const addClass = () => {
@@ -621,7 +640,7 @@ export default function TeacherProfile() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
               >
                 {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
               </Button>
@@ -643,7 +662,7 @@ export default function TeacherProfile() {
                       className="absolute top-0 right-0 h-6 w-6 p-0 rounded-full"
                       onClick={() => {
                         setProfile(prev => ({ ...prev, photo: "" }));
-                        setProfilePhoto(""); // Clear global profile photo
+                        // Don't clear global profile photo here - only when user hits save
                       }}
                     >
                       <X className="w-3 h-3" />
