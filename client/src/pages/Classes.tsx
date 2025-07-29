@@ -139,6 +139,7 @@ export default function Classes() {
     maxStudents: 30,
     description: ""
   });
+  const [selectedClasses, setSelectedClasses] = useState<string[]>(['Algebra 1', 'Geometry', 'Calculus']); // All selected by default
 
   // Calculate statistics
   const totalClasses = classes.length;
@@ -322,6 +323,14 @@ export default function Classes() {
     });
   };
 
+  const toggleClassVisibility = (className: string) => {
+    setSelectedClasses(prev => 
+      prev.includes(className) 
+        ? prev.filter(c => c !== className)
+        : [...prev, className]
+    );
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -500,13 +509,14 @@ export default function Classes() {
       <div className="mt-8">
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">Class Analytics & Performance</h2>
         
+        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Score Distribution Histogram */}
+          {/* Score Distribution Chart */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-800 flex items-center">
                 <BarChart3 className="w-5 h-5 mr-2" />
-                Score Distribution (0-20 Scale)
+                Score Distribution
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -593,8 +603,8 @@ export default function Classes() {
                           'height': 500,
                           'path': 'M64 0C28.7 0 0 28.7 0 64V448c0 35.3 28.7 64 64 64H320c35.3 0 64-28.7 64-64V160H256c-17.7 0-32-14.3-32-32V0H64zM256 0V128H384L256 0zM216 232V334.1l31-31c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-72 72c-9.4 9.4-24.6 9.4-33.9 0l-72-72c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l31 31V232c0-13.3 10.7-24 24-24s24 10.7 24 24z'
                         },
-                        click: function(gd) {
-                          Plotly.downloadImage(gd, {
+                        click: function(gd: any) {
+                          (Plotly as any).downloadImage(gd, {
                             format: 'png',
                             filename: 'score-distribution',
                             height: 400,
@@ -635,6 +645,163 @@ export default function Classes() {
             </CardContent>
           </Card>
 
+          {/* Score Progression Chart */}
+          <Card className="shadow-sm border border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center">
+                <LineChart className="w-5 h-5 mr-2" />
+                Score Progression by Class
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Custom Legend */}
+                <div className="overflow-x-auto">
+                  <div className="flex gap-4 min-w-max pb-2">
+                    {(() => {
+                      const classes = ['Algebra 1', 'Geometry', 'Calculus'];
+                      const colors = ['#3B82F6', '#EF4444', '#10B981'];
+                      
+                      return classes.map((className, index) => (
+                        <button
+                          key={className}
+                          onClick={() => toggleClassVisibility(className)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 cursor-pointer ${
+                            selectedClasses.includes(className)
+                              ? 'bg-gray-50 border-gray-200 shadow-sm'
+                              : 'bg-gray-100 border-gray-300 opacity-60'
+                          }`}
+                        >
+                          <div 
+                            className={`w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all duration-200 ${
+                              selectedClasses.includes(className) ? 'opacity-100' : 'opacity-40'
+                            }`}
+                            style={{ backgroundColor: colors[index] }}
+                          />
+                          <span className={`text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                            selectedClasses.includes(className) ? 'text-gray-700' : 'text-gray-500'
+                          }`}>
+                            {className}
+                          </span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* Multiline Chart */}
+                <div className="relative mb-0 pb-0 h-auto">
+                  {(() => {
+                    // Mock data for class progression through 6 exams
+                    const examData = {
+                      'Algebra 1': [14.2, 15.1, 16.3, 15.8, 17.2, 18.1],
+                      'Geometry': [13.8, 14.5, 15.7, 16.2, 17.5, 18.3],
+                      'Calculus': [12.5, 13.2, 14.1, 15.3, 16.8, 17.9]
+                    };
+
+                    const examNames = ['Exam 1', 'Exam 2', 'Exam 3', 'Exam 4', 'Exam 5', 'Exam 6'];
+
+                    // Create line data only for selected classes
+                    const lineData = Object.entries(examData)
+                      .filter(([className]) => selectedClasses.includes(className))
+                      .map(([className, scores], index) => {
+                        const colors = ['#3B82F6', '#EF4444', '#10B981']; // Blue, Red, Green
+                        const colorIndex = ['Algebra 1', 'Geometry', 'Calculus'].indexOf(className);
+                        return {
+                          x: examNames,
+                          y: scores,
+                          type: 'scatter' as const,
+                          mode: 'lines+markers' as const,
+                          name: className,
+                          showlegend: false, // Hide default legend
+                          line: {
+                            color: colors[colorIndex],
+                            width: 3
+                          },
+                          marker: {
+                            color: colors[colorIndex],
+                            size: 8,
+                            line: {
+                              color: '#FFFFFF',
+                              width: 2
+                            }
+                          },
+                          hovertemplate: `${className}<br>Exam %{x}<br>Average: %{y:.1f}/20<extra></extra>`
+                        };
+                      });
+
+                    const layout = {
+                      title: {
+                        text: 'Average Score Progression',
+                        font: { size: 16, color: '#374151' }
+                      },
+                      xaxis: {
+                        title: { text: 'Exams' },
+                        type: 'category' as const,
+                        showgrid: false,
+                        zeroline: false
+                      },
+                      yaxis: {
+                        title: { text: 'Average Score (0-20)' },
+                        zeroline: false,
+                        showgrid: false,
+                        range: [10, 20],
+                        tickvals: [10, 12, 14, 16, 18, 20],
+                        ticktext: ['10', '12', '14', '16', '18', '20']
+                      },
+                      showlegend: false, // Hide default legend
+                      margin: { l: 60, r: 30, t: 60, b: 60 },
+                      height: 250,
+                      plot_bgcolor: 'rgba(0,0,0,0)',
+                      paper_bgcolor: 'rgba(0,0,0,0)',
+                      font: { color: '#374151' },
+                      modebar: {
+                        bgcolor: 'rgba(0,0,0,0)',
+                        color: '#3B82F6',
+                        activecolor: '#1E40AF'
+                      }
+                    };
+
+                    const config = {
+                      displayModeBar: true,
+                      displaylogo: false,
+                      modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'zoom2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines', 'zoomIn2d', 'zoomOut2d', 'reset+autorange', 'toImage'] as any,
+                      modeBarButtonsToAdd: [{
+                        name: 'Download Chart',
+                        icon: {
+                          'width': 500,
+                          'height': 500,
+                          'path': 'M64 0C28.7 0 0 28.7 0 64V448c0 35.3 28.7 64 64 64H320c35.3 0 64-28.7 64-64V160H256c-17.7 0-32-14.3-32-32V0H64zM256 0V128H384L256 0zM216 232V334.1l31-31c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-72 72c-9.4 9.4-24.6 9.4-33.9 0l-72-72c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l31 31V232c0-13.3 10.7-24 24-24s24 10.7 24 24z'
+                        },
+                        click: function(gd: any) {
+                          (Plotly as any).downloadImage(gd, {
+                            format: 'png',
+                            filename: 'score-progression',
+                            height: 400,
+                            width: 600
+                          });
+                        }
+                      }] as any,
+                      responsive: true
+                    };
+
+                    return (
+                      <Plot
+                        data={lineData}
+                        layout={layout}
+                        config={config}
+                        style={{ width: '100%', height: '250px' }}
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Progress and Performance Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
           {/* Class Progress Overview */}
           <Card className="shadow-sm border border-gray-200">
             <CardHeader>
@@ -673,84 +840,6 @@ export default function Classes() {
                     </div>
                   );
                 })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Detailed Statistics Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-          {/* Student Distribution */}
-          <Card className="shadow-sm border border-gray-200">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center">
-                <PieChart className="w-5 h-5 mr-2" />
-                Student Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {classes.map((classItem) => {
-                  const percentage = Math.round((classItem.studentCount / totalStudents) * 100);
-                  return (
-                    <div key={classItem.id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
-                        <span className="text-sm text-gray-700">{classItem.name}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-800">{classItem.studentCount}</span>
-                        <span className="text-xs text-gray-500">({percentage}%)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Total Students</span>
-                    <span className="text-sm font-bold text-gray-800">{totalStudents}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Teaching Hours Distribution */}
-          <Card className="shadow-sm border border-gray-200">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center">
-                <Clock className="w-5 h-5 mr-2" />
-                Teaching Hours Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {classes.map((classItem) => {
-                  const percentage = Math.round((classItem.hoursPerWeek / totalHoursPerWeek) * 100);
-                  return (
-                    <div key={classItem.id} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">{classItem.name}</span>
-                        <span className="text-sm font-medium text-gray-800">{classItem.hoursPerWeek}h/week</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-orange-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500 w-8">{percentage}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Total Hours/Week</span>
-                    <span className="text-sm font-bold text-gray-800">{totalHoursPerWeek}h</span>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -821,6 +910,49 @@ export default function Classes() {
                         return `${largestClass.name} (${largestClass.studentCount} students)`;
                       })()}
                     </span>
+                  </div>
+                </div>
+
+                {/* Score Statistics */}
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="space-y-3">
+                    {/* Highest Score */}
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-green-700">Highest Score</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {Math.max(...mockGrades.map(g => g.score))}/20
+                        </span>
+                      </div>
+                      <div className="text-xs text-green-600">
+                        Achieved by: {(() => {
+                          const highestScore = Math.max(...mockGrades.map(g => g.score));
+                          const topStudents = mockGrades
+                            .filter(grade => grade.score === highestScore)
+                            .map(grade => grade.studentName);
+                          return topStudents.slice(0, 3).join(', ') + (topStudents.length > 3 ? '...' : '');
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Lowest Score */}
+                    <div className="bg-red-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-red-700">Lowest Score</span>
+                        <span className="text-lg font-bold text-red-600">
+                          {Math.min(...mockGrades.map(g => g.score))}/20
+                        </span>
+                      </div>
+                      <div className="text-xs text-red-600">
+                        Achieved by: {(() => {
+                          const lowestScore = Math.min(...mockGrades.map(g => g.score));
+                          const bottomStudents = mockGrades
+                            .filter(grade => grade.score === lowestScore)
+                            .map(grade => grade.studentName);
+                          return bottomStudents.slice(0, 3).join(', ') + (bottomStudents.length > 3 ? '...' : '');
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
