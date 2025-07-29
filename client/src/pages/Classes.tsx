@@ -512,7 +512,7 @@ export default function Classes() {
             <CardContent>
               <div className="space-y-4">
                 {/* Histogram Bar Chart */}
-                <div className="relative">
+                <div className="relative mb-0 pb-0 h-auto">
                   {(() => {
                     // Extract scores from mockGrades
                     const scores = mockGrades.map(grade => grade.score);
@@ -571,7 +571,7 @@ export default function Classes() {
                       },
                       showlegend: false,
                       margin: { l: 60, r: 30, t: 60, b: 60 },
-                      height: 300,
+                      height: 250,
                       plot_bgcolor: 'rgba(0,0,0,0)',
                       paper_bgcolor: 'rgba(0,0,0,0)',
                       font: { color: '#374151' },
@@ -610,63 +610,24 @@ export default function Classes() {
                         data={[histogramData]}
                         layout={layout}
                         config={config}
-                        style={{ width: '100%', height: '400px' }}
+                        style={{ width: '100%', height: '250px' }}
                       />
                     );
                   })()}
                 </div>
 
                 {/* Statistics */}
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Average Score</div>
-                    <div className="text-lg font-bold text-gray-800">
-                      {(() => {
-                        const scores20 = mockGrades.map(g => g.score);
-                        const avg = scores20.length > 0 
-                          ? (scores20.reduce((sum, score) => sum + score, 0) / scores20.length).toFixed(1)
-                          : '0.0';
-                        return `${avg}/20`;
-                      })()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Total Students</div>
-                    <div className="text-lg font-bold text-gray-800">{mockGrades.length}</div>
-                  </div>
-                  <div>
+                <div className="grid grid-cols-2 gap-4 pt-1 border-t border-gray-200 mt-1">
+                  <div className="text-center">
                     <div className="text-sm font-medium text-gray-700">Highest Score</div>
                     <div className="text-lg font-bold text-green-600">
                       {Math.max(...mockGrades.map(g => g.score))}/20
                     </div>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <div className="text-sm font-medium text-gray-700">Lowest Score</div>
                     <div className="text-lg font-bold text-red-600">
                       {Math.min(...mockGrades.map(g => g.score))}/20
-                    </div>
-                  </div>
-                </div>
-
-                {/* Score Range Legend */}
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="text-sm font-medium text-gray-700 mb-2">Score Ranges:</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-red-500 rounded"></div>
-                      <span>0-4: Poor</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                      <span>5-8: Below Average</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-                      <span>9-12: Average</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-green-500 rounded"></div>
-                      <span>13-20: Good/Excellent</span>
                     </div>
                   </div>
                 </div>
