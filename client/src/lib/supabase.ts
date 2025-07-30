@@ -48,4 +48,29 @@ export interface Class {
   School?: string
   Hourly_Payement?: string
   Teacher_id: number
+}
+
+export interface TimeSlot {
+  id: number
+  day_of_week: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday'
+  slot_index: number
+  start_time: string
+  end_time: string
+}
+
+export interface Schedule {
+  id: number
+  created_at: string
+  User_Id: number
+  Class_Id: number
+  Slot_Id: number
+  class_room?: string
+  Notes?: string
+}
+
+// Extended interfaces for joined data
+export interface ScheduleWithDetails extends Schedule {
+  class?: Class
+  time_slot?: TimeSlot
+  user?: User
 } 

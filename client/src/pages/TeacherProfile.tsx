@@ -8,11 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Edit, Save, X, Plus, Trash2, FileText } from "lucide-react";
+import { CalendarIcon, Edit, Save, X, Plus, Trash2, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import Cropper from 'react-easy-crop'
 import { useProfile } from "@/contexts/ProfileContext";
+import { useTeacherData } from "@/hooks/useTeacherData";
+import { useClassesData } from "@/hooks/useClassesData";
+import { useSchedulesData } from "@/hooks/useSchedulesData";
+import { supabase } from "@/lib/supabase";
 
 interface ClassInfo {
   id: string;
@@ -36,20 +40,27 @@ interface WeeklySchedule {
 
 export default function TeacherProfile() {
   const { profilePhoto, setProfilePhoto } = useProfile();
+  const { user, teacher, loading, error, refetch } = useTeacherData(2);
+  const { classes: fetchedClasses, loading: classesLoading, error: classesError, refetch: refetchClasses } = useClassesData(teacher?.id || 0);
+  const { schedules, timeSlots, loading: schedulesLoading, error: schedulesError, refetch: refetchSchedules, addSchedule, deleteSchedule, updateSchedule } = useSchedulesData(2);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Initialize profile with fetched data or defaults
   const [profile, setProfile] = useState({
-    name: "Mr. Anas Bellaouali",
-    email: "anas.bellaouali@school.edu",
-    phone: "+212 6 12 34 56 78",
-    age: 28,
-    gender: "Male",
-    address: "123 Education Street",
-    city: "Ifrane",
-    bio: "Experienced mathematics teacher with 5 years of teaching experience. Passionate about making math accessible and engaging for all students.",
-    experience: 5,
-    subject: "Mathematics",
+    firstName: user?.First_name || "Loading...",
+    lastName: user?.Last_name || "Loading...",
+    email: user?.Email || "Loading...",
+    phone: user?.Phone || "",
+    age: user?.Age || 0,
+    gender: user?.Gender || "",
+    address: user?.Address || "",
+    city: user?.CIty || "",
+    bio: user?.Bio || "",
+    experience: teacher?.Experience_Years || 0,
+    subject: teacher?.Subjects?.[0] || "",
     photo: profilePhoto,
-    schools: [
+    schools: teacher?.Schools?.map(school => ({ name: school, type: "both" })) || [
       { name: "Al Akhawayn University", type: "both" },
       { name: "International School of Morocco", type: "lycee" }
     ],
@@ -67,77 +78,67 @@ export default function TeacherProfile() {
     setOriginalProfilePhoto(profilePhoto);
   }, [profilePhoto]);
 
-  const [classes, setClasses] = useState<ClassInfo[]>([
-    { id: "1", name: "1A", level: "College", grade: "1st Grade", hoursPerWeek: 6, students: 24, school: "Al Akhawayn University" },
-    { id: "2", name: "2A", level: "College", grade: "2nd Grade", hoursPerWeek: 5, students: 22, school: "Al Akhawayn University" },
-    { id: "3", name: "3A", level: "College", grade: "3rd Grade", hoursPerWeek: 4, students: 26, school: "Al Akhawayn University" },
-    { id: "4", name: "1B", level: "Lycee", grade: "1st Grade", hoursPerWeek: 6, students: 28, school: "International School of Morocco" }
-  ]);
-
-  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule[]>([
-    {
-      day: "Monday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "1A", classroom: "Room 101" },
-        { from: "10:00", to: "11:00", class: "2A", classroom: "Room 102" },
-        { from: "14:30", to: "15:30", class: "3A", classroom: "Room 103" },
-        { from: "16:00", to: "17:00", class: "1B", classroom: "Room 201" }
-      ]
-    },
-    {
-      day: "Tuesday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "1B", classroom: "Room 201" },
-        { from: "11:00", to: "12:00", class: "1A", classroom: "Room 101" },
-        { from: "14:30", to: "15:30", class: "2A", classroom: "Room 102" },
-        { from: "19:00", to: "20:00", class: "3A", classroom: "Room 103" }
-      ]
-    },
-    {
-      day: "Wednesday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "2A", classroom: "Room 102" },
-        { from: "10:00", to: "11:00", class: "1A", classroom: "Room 101" },
-        { from: "14:30", to: "15:30", class: "3A", classroom: "Room 103" },
-        { from: "16:00", to: "17:00", class: "1B", classroom: "Room 201" }
-      ]
-    },
-    {
-      day: "Thursday",
-      classes: [
-        { from: "09:00", to: "10:00", class: "1B", classroom: "Room 201" },
-        { from: "11:00", to: "12:00", class: "2A", classroom: "Room 102" },
-        { from: "14:30", to: "15:30", class: "1A", classroom: "Room 101" },
-        { from: "19:00", to: "20:00", class: "3A", classroom: "Room 103" }
-      ]
-    },
-    {
-      day: "Friday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "2A", classroom: "Room 102" },
-        { from: "10:00", to: "11:00", class: "1A", classroom: "Room 101" },
-        { from: "14:30", to: "15:30", class: "3A", classroom: "Room 103" },
-        { from: "16:00", to: "17:00", class: "1B", classroom: "Room 201" }
-      ]
-    },
-    {
-      day: "Saturday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "1A", classroom: "Room 101" },
-        { from: "10:00", to: "11:00", class: "2A", classroom: "Room 102" },
-        { from: "14:30", to: "15:30", class: "3A", classroom: "Room 103" }
-      ]
-    },
-    {
-      day: "Sunday",
-      classes: [
-        { from: "08:30", to: "09:30", class: "1B", classroom: "Room 201" },
-        { from: "11:00", to: "12:00", class: "2A", classroom: "Room 102" },
-        { from: "14:30", to: "15:30", class: "3A", classroom: "Room 103" },
-        { from: "19:00", to: "20:00", class: "1A", classroom: "Room 101" }
-      ]
+  // Update profile when user and teacher data is loaded
+  React.useEffect(() => {
+    if (user && teacher) {
+      setProfile(prev => ({
+        ...prev,
+        firstName: user.First_name,
+        lastName: user.Last_name,
+        email: user.Email,
+        phone: user.Phone || "",
+        age: user.Age || 0,
+        gender: user.Gender || "",
+        address: user.Address || "",
+        city: user.CIty || "",
+        bio: user.Bio || "",
+        experience: teacher.Experience_Years || 0,
+        subject: teacher.Subjects?.[0] || "",
+        schools: teacher.Schools?.map(school => ({ name: school, type: "both" })) || prev.schools
+      }));
     }
-  ]);
+  }, [user, teacher]);
+
+  // Update weekly schedule when schedules data changes
+  React.useEffect(() => {
+    setWeeklySchedule(convertSchedulesToWeeklyFormat());
+  }, [schedules]);
+
+  // Convert fetched classes to ClassInfo format for display
+  const classes: ClassInfo[] = fetchedClasses.map(cls => ({
+    id: cls.id.toString(),
+    name: cls.Class_Name || '',
+    level: cls.Level || '',
+    grade: cls.Grade || '',
+    hoursPerWeek: cls.Hours || 0,
+    students: cls.Max_Students || 0,
+    school: cls.School || ''
+  }));
+
+  // Convert database schedules to UI format using direct mapping
+  const convertSchedulesToWeeklyFormat = (): WeeklySchedule[] => {
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    return daysOfWeek.map(day => {
+      const daySchedules = schedules.filter(schedule => 
+        schedule.time_slot?.day_of_week === day
+      );
+      
+      const dayClasses = daySchedules.map(schedule => ({
+        from: schedule.time_slot?.start_time || '',
+        to: schedule.time_slot?.end_time || '',
+        class: schedule.class?.Class_Name || '',
+        classroom: schedule.class_room || ''
+      }));
+      
+      return {
+        day,
+        classes: dayClasses
+      };
+    });
+  };
+
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule[]>(convertSchedulesToWeeklyFormat());
 
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [newScheduleItem, setNewScheduleItem] = useState({
@@ -158,6 +159,7 @@ export default function TeacherProfile() {
   });
 
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
 
   // Schools management states
   const [newSchool, setNewSchool] = useState({ name: "", type: "both" });
@@ -244,13 +246,85 @@ export default function TeacherProfile() {
     setCroppedAreaPixels(croppedAreaPixels);
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Update the global profile photo only when user hits save
-    setProfilePhoto(profile.photo);
-    // Update the original photo reference
-    setOriginalProfilePhoto(profile.photo);
-    // Here you would typically save to backend
+  const handleSave = async () => {
+    if (!user || !teacher) {
+      alert('User data not available. Please refresh the page and try again.');
+      return;
+    }
+    
+    // Ask for confirmation
+    const confirmed = window.confirm('Are you sure you want to save these changes?');
+    if (!confirmed) {
+      return;
+    }
+    
+    try {
+      // Show loading state
+      setIsSaving(true);
+      setIsEditing(false);
+      
+      // Update the global profile photo
+      setProfilePhoto(profile.photo);
+      setOriginalProfilePhoto(profile.photo);
+      
+      // Validate required fields
+      if (!profile.firstName || !profile.lastName) {
+        alert('Please fill in all required fields (First Name and Last Name).');
+        setIsEditing(true); // Re-enable editing
+        return;
+      }
+      
+      // Update user data in Supabase
+      const { data: updatedUser, error: userError } = await supabase
+        .from('Users')
+        .update({
+          First_name: profile.firstName,
+          Last_name: profile.lastName,
+          Phone: profile.phone || null,
+          Age: profile.age || null,
+          Gender: profile.gender || null,
+          Address: profile.address || null,
+          CIty: profile.city || null,
+          Bio: profile.bio || null
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+      
+      if (userError) {
+        throw new Error(`Error updating user profile: ${userError.message}`);
+      }
+      
+      // Update teacher data in Supabase
+      const { data: updatedTeacher, error: teacherError } = await supabase
+        .from('Teachers')
+        .update({
+          Experience_Years: profile.experience || null,
+          Subjects: profile.subject ? [profile.subject] : null,
+          Schools: profile.schools.length > 0 ? profile.schools.map(school => school.name) : null
+        })
+        .eq('id', teacher.id)
+        .select()
+        .single();
+      
+      if (teacherError) {
+        throw new Error(`Error updating teacher profile: ${teacherError.message}`);
+      }
+      
+      // Show success message
+      alert('Profile updated successfully!');
+      console.log('Profile updated successfully:', { updatedUser, updatedTeacher });
+      
+      // Refresh the data to show the latest changes
+      await refetch();
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert(`Error saving profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsEditing(true); // Re-enable editing on error
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -261,10 +335,50 @@ export default function TeacherProfile() {
     // (You could add more revert logic here if needed)
   };
 
-  const addClass = () => {
-    if (newClass.name && newClass.level && newClass.grade) {
-      setClasses([...classes, { ...newClass, id: Date.now().toString() }]);
+  const addClass = async () => {
+    if (!teacher) {
+      alert('Teacher data not available. Please refresh the page and try again.');
+      return;
+    }
+
+    if (!newClass.name || !newClass.level || !newClass.grade || !newClass.school) {
+      alert('Please fill in all required fields (Class Name, Level, Grade, and School).');
+      return;
+    }
+
+    try {
+      const { data: newClassData, error } = await supabase
+        .from('Classes')
+        .insert({
+          Class_Name: newClass.name,
+          Level: newClass.level,
+          Grade: newClass.grade,
+          subject: profile.subject || 'General',
+          Description: `${newClass.level} ${newClass.grade} class`,
+          Classroom: 'TBD',
+          Hours: newClass.hoursPerWeek,
+          Max_Students: 30, // Default value
+          School: newClass.school,
+          Hourly_Payement: '50', // Default value
+          Teacher_id: teacher.id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Error adding class: ${error.message}`);
+      }
+
+      // Clear the form
       setNewClass({ name: "", level: "", grade: "", hoursPerWeek: 0, students: 0, school: "" });
+      
+      // Refresh the classes data
+      await refetchClasses();
+      
+      alert('Class added successfully!');
+    } catch (error) {
+      console.error('Error adding class:', error);
+      alert(`Error adding class: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -324,7 +438,7 @@ export default function TeacherProfile() {
     setCourses(prev => prev.filter(course => course.id !== id));
   };
 
-  const removeClass = (id: string) => {
+  const removeClass = async (id: string) => {
     const classToDelete = classes.find(cls => cls.id === id);
     const className = classToDelete?.name || 'this class';
     
@@ -339,13 +453,30 @@ export default function TeacherProfile() {
     );
     
     if (confirmed) {
-      setClasses(classes.filter(cls => cls.id !== id));
-      
-      // Also remove this class from the weekly schedule
-      setWeeklySchedule(prev => prev.map(day => ({
-        ...day,
-        classes: day.classes.filter(cls => cls.class !== classToDelete?.name)
-      })));
+      try {
+        const { error } = await supabase
+          .from('Classes')
+          .delete()
+          .eq('id', parseInt(id));
+
+        if (error) {
+          throw new Error(`Error deleting class: ${error.message}`);
+        }
+
+        // Refresh the classes data
+        await refetchClasses();
+        
+        // Also remove this class from the weekly schedule
+        setWeeklySchedule(prev => prev.map(day => ({
+          ...day,
+          classes: day.classes.filter(cls => cls.class !== classToDelete?.name)
+        })));
+        
+        alert('Class deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting class:', error);
+        alert(`Error deleting class: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   };
 
@@ -355,112 +486,116 @@ export default function TeacherProfile() {
     return hours * 60 + minutes;
   };
 
-  const isValidTimeFormat = (time: string) => {
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(time)) return false;
-    
-    const [hours, minutes] = time.split(':').map(Number);
-    
-    // Check if time is within valid school hours
-    const timeInMinutes = hours * 60 + minutes;
-    
-    // Morning session: 08:30 - 12:30
-    const morningStart = 8 * 60 + 30; // 08:30
-    const morningEnd = 12 * 60 + 30;  // 12:30
-    
-    // Afternoon session: 14:30 - 18:30
-    const afternoonStart = 14 * 60 + 30; // 14:30
-    const afternoonEnd = 18 * 60 + 30;   // 18:30
-    
-    // Evening session: 19:00 - 21:00
-    const eveningStart = 19 * 60; // 19:00
-    const eveningEnd = 21 * 60;   // 21:00
-    
-    return (timeInMinutes >= morningStart && timeInMinutes <= morningEnd) ||
-           (timeInMinutes >= afternoonStart && timeInMinutes <= afternoonEnd) ||
-           (timeInMinutes >= eveningStart && timeInMinutes <= eveningEnd);
-  };
 
-  const hasTimeConflict = (day: string, from: string, to: string, excludeIndex?: number) => {
-    const daySchedule = weeklySchedule.find(d => d.day === day);
-    if (!daySchedule) return false;
+  const addScheduleItem = async () => {
+    if (!newScheduleItem.day || !newScheduleItem.class) {
+      alert('Please select a day and class.');
+      return;
+    }
 
-    const newFrom = timeToMinutes(from);
-    const newTo = timeToMinutes(to);
+    try {
+      // Find the time slot that matches the selected time
+      const timeSlot = timeSlots.find(slot => 
+        slot.day_of_week === newScheduleItem.day && 
+        slot.start_time === newScheduleItem.from && 
+        slot.end_time === newScheduleItem.to
+      );
 
-    // Check if end time is after start time
-    if (newTo <= newFrom) return true;
+      if (!timeSlot) {
+        alert('Selected time slot not found. Please try again.');
+        return;
+      }
 
-    return daySchedule.classes.some((cls, index) => {
-      if (excludeIndex !== undefined && index === excludeIndex) return false;
-      
-      const existingFrom = timeToMinutes(cls.from);
-      const existingTo = timeToMinutes(cls.to);
-      
-      // Check for overlap
-      return (newFrom < existingTo && newTo > existingFrom);
-    });
-  };
+      // Find the class that matches the selected class name
+      const selectedClass = classes.find(cls => cls.name === newScheduleItem.class);
 
-  const addScheduleItem = () => {
-    console.log("Adding/updating schedule item:", newScheduleItem); // Debug log
+      if (!selectedClass) {
+        alert('Selected class not found. Please try again.');
+        return;
+      }
 
-    const updatedSchedule = weeklySchedule.map(daySchedule => {
-      if (daySchedule.day === newScheduleItem.day) {
-        // Check if there's an existing class in this time slot
-        const existingClassIndex = daySchedule.classes.findIndex(cls => 
-          cls.from === newScheduleItem.from && cls.to === newScheduleItem.to
+      if (editingScheduleId) {
+        // Update existing schedule
+        await updateScheduleItem(editingScheduleId, {
+          Class_Id: parseInt(selectedClass.id),
+          class_room: newScheduleItem.classroom,
+          Notes: ''
+        });
+        
+        // Clear editing state
+        setEditingScheduleId(null);
+        alert('Schedule item updated successfully!');
+      } else {
+        // Check if there's already a schedule in this time slot
+        const existingSchedule = schedules.find(schedule => 
+          schedule.Slot_Id === timeSlot.id
         );
 
-        if (existingClassIndex !== -1) {
-          // Update existing class
-          const updatedClasses = [...daySchedule.classes];
-          updatedClasses[existingClassIndex] = {
-            from: newScheduleItem.from || "",
-            to: newScheduleItem.to || "",
-            class: newScheduleItem.class || "",
-            classroom: newScheduleItem.classroom || ""
-          };
-          console.log("Updating existing class:", updatedClasses[existingClassIndex]);
-          return {
-            ...daySchedule,
-            classes: updatedClasses
-          };
-        } else {
-          // Add new class
-          const newClass = {
-            from: newScheduleItem.from || "",
-            to: newScheduleItem.to || "",
-            class: newScheduleItem.class || "",
-            classroom: newScheduleItem.classroom || ""
-          };
-          console.log("Adding new class:", newClass);
-          return {
-            ...daySchedule,
-            classes: [...daySchedule.classes, newClass]
-          };
+        if (existingSchedule) {
+          alert('There is already a class scheduled in this time slot. Please choose a different time.');
+          return;
         }
+
+        // Add new schedule to the database
+        await addSchedule(
+          parseInt(selectedClass.id), 
+          timeSlot.id, 
+          newScheduleItem.classroom, 
+          ''
+        );
+        
+        alert('Schedule item added successfully!');
       }
-      return daySchedule;
-    });
-    
-    console.log("Updated schedule:", updatedSchedule); // Debug log
-    setWeeklySchedule(updatedSchedule);
-    setNewScheduleItem({ day: "", from: "", to: "", class: "", classroom: "" });
-    setSelectedTimeSlot("");
+
+      // Clear the form
+      setNewScheduleItem({ day: "", from: "", to: "", class: "", classroom: "" });
+      setSelectedTimeSlot("");
+      
+    } catch (error) {
+      console.error('Error adding/updating schedule item:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  const removeScheduleItem = (day: string, index: number) => {
-    const updatedSchedule = weeklySchedule.map(daySchedule => {
-      if (daySchedule.day === day) {
-        return {
-          ...daySchedule,
-          classes: daySchedule.classes.filter((_, i) => i !== index)
-        };
+  const updateScheduleItem = async (scheduleId: number, updates: {
+    Class_Id?: number;
+    class_room?: string;
+    Notes?: string;
+  }) => {
+    try {
+      await updateSchedule(scheduleId, updates);
+      alert('Schedule item updated successfully!');
+    } catch (error) {
+      console.error('Error updating schedule item:', error);
+      alert(`Error updating schedule item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const removeScheduleItem = async (day: string, index: number) => {
+    try {
+      // Find the schedule to remove
+      const daySchedules = schedules.filter(schedule => 
+        schedule.time_slot?.day_of_week === day
+      );
+      
+      if (index < daySchedules.length) {
+        const scheduleToRemove = daySchedules[index];
+        
+        // Confirm deletion
+        const confirmed = window.confirm(
+          `Are you sure you want to remove "${scheduleToRemove.class?.Class_Name}" from ${day} ${scheduleToRemove.time_slot?.start_time}-${scheduleToRemove.time_slot?.end_time}?`
+        );
+        
+        if (confirmed) {
+          // Delete from database
+          await deleteSchedule(scheduleToRemove.id);
+          alert('Schedule item removed successfully!');
+        }
       }
-      return daySchedule;
-    });
-    setWeeklySchedule(updatedSchedule);
+    } catch (error) {
+      console.error('Error removing schedule item:', error);
+      alert(`Error removing schedule item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Generate time slots for the calendar view
@@ -509,7 +644,14 @@ export default function TeacherProfile() {
       ?.classes.find(cls => cls.from === from && cls.to === to);
     
     if (existingClass) {
-      // If there's an existing class, populate the form with its data
+      // Find the actual schedule object to get the ID
+      const existingSchedule = schedules.find(schedule => 
+        schedule.time_slot?.day_of_week === day &&
+        schedule.time_slot?.start_time === from &&
+        schedule.time_slot?.end_time === to
+      );
+      
+      // If there's an existing class, populate the form with its data and set editing mode
       setNewScheduleItem({
         day: day,
         from: from,
@@ -517,9 +659,12 @@ export default function TeacherProfile() {
         class: existingClass.class || "",
         classroom: existingClass.classroom || ""
       });
-      console.log("Editing existing class:", existingClass);
+      
+      // Set the editing schedule ID
+      setEditingScheduleId(existingSchedule?.id || null);
+      console.log("Editing existing class:", existingClass, "Schedule ID:", existingSchedule?.id);
     } else {
-      // If it's an empty slot, just set the time
+      // If it's an empty slot, just set the time and clear editing mode
       setNewScheduleItem(prev => ({
         ...prev,
         day: day,
@@ -528,11 +673,45 @@ export default function TeacherProfile() {
         class: "",
         classroom: ""
       }));
+      setEditingScheduleId(null);
       console.log("Adding new class to empty slot");
     }
     
     setSelectedTimeSlot(timeSlot);
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="p-8 max-w-6xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-gray-600">Loading teacher profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="p-8 max-w-6xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error loading profile</p>
+              <p className="text-sm">{error}</p>
+            </div>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -625,8 +804,20 @@ export default function TeacherProfile() {
       )}
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Teacher Profile</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          {user ? `${user.First_name} ${user.Last_name}'s Profile` : "Teacher Profile"}
+        </h1>
         <p className="text-gray-600">Manage your personal information and class schedule</p>
+        {user && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-700">
+              <strong>Data Source:</strong> Fetched from Supabase (User ID: {user.id})
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Last updated: {new Date(user.created_at).toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -652,7 +843,7 @@ export default function TeacherProfile() {
                   <Avatar className="w-24 h-24">
                     <AvatarImage src={profile.photo} />
                     <AvatarFallback className="text-2xl bg-primary text-white">
-                      {profile.name.split(' ').map(n => n[0]).join('')}
+                      {`${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}`}
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && profile.photo && (
@@ -690,31 +881,36 @@ export default function TeacherProfile() {
 
               {/* Personal Details */}
               <div className="space-y-3">
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  {isEditing ? (
-                    <Input
-                      id="name"
-                      value={profile.name}
-                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-gray-600">{profile.name}</p>
-                  )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    {isEditing ? (
+                      <Input
+                        id="firstName"
+                        value={profile.firstName}
+                        onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.firstName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    {isEditing ? (
+                      <Input
+                        id="lastName"
+                        value={profile.lastName}
+                        onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-600">{profile.lastName}</p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  {isEditing ? (
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-gray-600">{profile.email}</p>
-                  )}
+                  <p className="text-gray-600">{profile.email}</p>
                 </div>
 
                 <div>
@@ -920,9 +1116,18 @@ export default function TeacherProfile() {
               </div>
 
               {isEditing && (
-                <Button onClick={handleSave} className="w-full">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                <Button onClick={handleSave} className="w-full" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               )}
             </CardContent>
@@ -1074,30 +1279,53 @@ export default function TeacherProfile() {
 
                   {/* Classes List */}
                   <div className="space-y-2">
-                    {classes.map((cls) => (
-                      <div key={cls.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div 
-                            className="w-20 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm px-2 cursor-pointer hover:bg-primary/90 transition-colors"
-                            onClick={() => window.location.href = `/classes/${cls.id}`}
-                          >
-                            {cls.name.length > 7 ? `${cls.name.substring(0, 7)}...` : cls.name}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-800">{cls.name}</p>
-                            <p className="text-sm text-gray-600">{cls.grade} • {cls.hoursPerWeek}h/week • {cls.students} students • {cls.school}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeClass(cls.id)}
-                          className="text-red-600 hover:text-red-700"
+                    {classesLoading ? (
+                      <div className="flex items-center justify-center p-8">
+                        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                        <span className="text-gray-600">Loading classes...</span>
+                      </div>
+                    ) : classesError ? (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-600">Error loading classes: {classesError}</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={refetchClasses}
+                          className="mt-2"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          Retry
                         </Button>
                       </div>
-                    ))}
+                    ) : classes.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500">
+                        <p>No classes found. Add your first class above.</p>
+                      </div>
+                    ) : (
+                      classes.map((cls) => (
+                        <div key={cls.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div 
+                              className="w-20 h-12 bg-primary text-white rounded-lg flex items-center justify-center font-bold text-sm px-2 cursor-pointer hover:bg-primary/90 transition-colors"
+                              onClick={() => window.location.href = `/classes/${cls.id}`}
+                            >
+                              {cls.name.length > 7 ? `${cls.name.substring(0, 7)}...` : cls.name}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800">{cls.name}</p>
+                              <p className="text-sm text-gray-600">{cls.grade} • {cls.hoursPerWeek}h/week • {cls.students} students • {cls.school}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeClass(cls.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1263,8 +1491,30 @@ export default function TeacherProfile() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Loading and Error States */}
+              {schedulesLoading && (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  <span className="text-gray-600">Loading schedule...</span>
+                </div>
+              )}
+
+              {schedulesError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600">Error loading schedule: {schedulesError}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refetchSchedules}
+                    className="mt-2"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+
               {/* Add New Schedule Item */}
-              {isEditingSchedule && (
+              {isEditingSchedule && !schedulesLoading && !schedulesError && (
                 <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <Select value={newScheduleItem.day} onValueChange={(value) => setNewScheduleItem({ ...newScheduleItem, day: value })}>
@@ -1305,13 +1555,14 @@ export default function TeacherProfile() {
                   </div>
                   <Button onClick={addScheduleItem} className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
-                    {newScheduleItem.class ? "Update Class" : "Add Class to Schedule"}
+                    {editingScheduleId ? "Update Schedule" : "Add Class to Schedule"}
                   </Button>
                 </div>
               )}
 
               {/* Weekly Calendar View */}
-              <div className="w-full">
+              {!schedulesLoading && !schedulesError && (
+                <div className="w-full">
                 <div className="w-full">
                   {/* Header Row */}
                   <div className="grid grid-cols-8 gap-1 mb-2">
@@ -1330,9 +1581,11 @@ export default function TeacherProfile() {
                         {timeSlot}
                       </div>
                       {weeklySchedule.map((day) => {
-                        const classInSlot = day.classes.find(cls => 
-                          cls.from + " - " + cls.to === timeSlot
-                        );
+                        const classInSlot = day.classes.find(cls => {
+                          // Create the time slot string from the class data
+                          const classTimeSlot = `${cls.from} - ${cls.to}`;
+                          return classTimeSlot === timeSlot;
+                        });
                         
                         // Check if this is break time
                         const isBreakTime = timeSlot >= "12:30" && timeSlot < "14:30";
@@ -1393,6 +1646,7 @@ export default function TeacherProfile() {
                   ))}
                 </div>
               </div>
+              )}
             </div>
           </CardContent>
         </Card>
