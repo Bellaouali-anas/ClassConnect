@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Schedule, ScheduleWithDetails, TimeSlot, Class } from '@/lib/supabase';
 
-export const useSchedulesData = (userId: number) => {
+export const useSchedulesData = (userId: string) => {
   const [schedules, setSchedules] = useState<ScheduleWithDetails[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,12 +13,12 @@ export const useSchedulesData = (userId: number) => {
       setLoading(true);
       setError(null);
 
-      // Step 1: Fetch all schedules for user ID 2
+      // Step 1: Fetch all schedules for the specific user
       const { data: schedulesData, error: schedulesError } = await supabase
-        .from('Schedules')
+        .from('schedules')
         .select('*')
-        .eq('User_Id', userId)
-        .order('Slot_Id', { ascending: true });
+        .eq('user_id', userId)
+        .order('slot_id', { ascending: true });
 
       if (schedulesError) {
         throw new Error(`Error fetching schedules: ${schedulesError.message}`);
@@ -31,27 +31,27 @@ export const useSchedulesData = (userId: number) => {
       
       if (schedulesData) {
         for (const schedule of schedulesData) {
-          // Fetch the time slot for this schedule using Slot_Id
+          // Fetch the time slot for this schedule using slot_id
           const { data: timeSlotData, error: timeSlotError } = await supabase
-            .from('Time_slots')
+            .from('time_slots')
             .select('*')
-            .eq('id', schedule.Slot_Id)
+            .eq('id', schedule.slot_id)
             .single();
 
           if (timeSlotError) {
-            console.error(`Error fetching time slot ${schedule.Slot_Id}:`, timeSlotError);
+            console.error(`Error fetching time slot ${schedule.slot_id}:`, timeSlotError);
             continue;
           }
 
           // Fetch the class for this schedule
           const { data: classData, error: classError } = await supabase
-            .from('Classes')
+            .from('classes')
             .select('*')
-            .eq('id', schedule.Class_Id)
+            .eq('id', schedule.class_id)
             .single();
 
           if (classError) {
-            console.error(`Error fetching class ${schedule.Class_Id}:`, classError);
+            console.error(`Error fetching class ${schedule.class_id}:`, classError);
             continue;
           }
 
@@ -63,7 +63,7 @@ export const useSchedulesData = (userId: number) => {
           };
 
           schedulesWithDetails.push(scheduleWithDetails);
-          console.log(`Schedule ${schedule.id}: Slot_Id ${schedule.Slot_Id} -> ${timeSlotData.day_of_week} ${timeSlotData.start_time}-${timeSlotData.end_time} -> Class: ${classData.Class_Name}`);
+          console.log(`Schedule ${schedule.id}: slot_id ${schedule.slot_id} -> ${timeSlotData.day_of_week} ${timeSlotData.start_time}-${timeSlotData.end_time} -> Class: ${classData.class_name}`);
         }
       }
 
@@ -71,7 +71,7 @@ export const useSchedulesData = (userId: number) => {
 
       // Step 3: Fetch all time slots for reference
       const { data: timeSlotsData, error: timeSlotsError } = await supabase
-        .from('Time_slots')
+        .from('time_slots')
         .select('*')
         .order('id', { ascending: true });
 
@@ -93,13 +93,13 @@ export const useSchedulesData = (userId: number) => {
   const addSchedule = async (classId: number, slotId: number, classroom?: string, notes?: string) => {
     try {
       const { data, error } = await supabase
-        .from('Schedules')
+        .from('schedules')
         .insert({
-          User_Id: userId,
-          Class_Id: classId,
-          Slot_Id: slotId,
+          user_id: userId,
+          class_id: classId,
+          slot_id: slotId,
           class_room: classroom,
-          Notes: notes
+          notes: notes
         })
         .select('*')
         .single();
@@ -110,13 +110,13 @@ export const useSchedulesData = (userId: number) => {
 
       // Fetch the time slot and class data for the new schedule
       const { data: timeSlotData } = await supabase
-        .from('Time_slots')
+        .from('time_slots')
         .select('*')
         .eq('id', slotId)
         .single();
 
       const { data: classData } = await supabase
-        .from('Classes')
+        .from('classes')
         .select('*')
         .eq('id', classId)
         .single();
@@ -139,7 +139,7 @@ export const useSchedulesData = (userId: number) => {
   const updateSchedule = async (scheduleId: number, updates: Partial<Schedule>) => {
     try {
       const { data, error } = await supabase
-        .from('Schedules')
+        .from('schedules')
         .update(updates)
         .eq('id', scheduleId)
         .select('*')
@@ -151,15 +151,15 @@ export const useSchedulesData = (userId: number) => {
 
       // Fetch the time slot and class data for the updated schedule
       const { data: timeSlotData } = await supabase
-        .from('Time_slots')
+        .from('time_slots')
         .select('*')
-        .eq('id', data.Slot_Id)
+        .eq('id', data.slot_id)
         .single();
 
       const { data: classData } = await supabase
-        .from('Classes')
+        .from('classes')
         .select('*')
-        .eq('id', data.Class_Id)
+        .eq('id', data.class_id)
         .single();
 
       const updatedScheduleWithDetails: ScheduleWithDetails = {
@@ -182,7 +182,7 @@ export const useSchedulesData = (userId: number) => {
   const deleteSchedule = async (scheduleId: number) => {
     try {
       const { error } = await supabase
-        .from('Schedules')
+        .from('schedules')
         .delete()
         .eq('id', scheduleId);
 

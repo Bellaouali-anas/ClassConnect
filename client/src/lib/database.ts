@@ -3,9 +3,9 @@ import { supabase, User, Teacher, Class } from './supabase'
 // User operations
 export const userService = {
   // Get user by ID
-  async getUserById(id: number): Promise<User | null> {
+  async getUserById(id: string): Promise<User | null> {
     const { data, error } = await supabase
-      .from('Users')
+      .from('users')
       .select('*')
       .eq('id', id)
       .single()
@@ -21,9 +21,9 @@ export const userService = {
   // Get user by email
   async getUserByEmail(email: string): Promise<User | null> {
     const { data, error } = await supabase
-      .from('Users')
+      .from('users')
       .select('*')
-      .eq('Email', email)
+      .eq('email', email)
       .single()
     
     if (error) {
@@ -37,7 +37,7 @@ export const userService = {
   // Create new user
   async createUser(userData: Omit<User, 'id' | 'created_at'>): Promise<User | null> {
     const { data, error } = await supabase
-      .from('Users')
+      .from('users')
       .insert([userData])
       .select()
       .single()
@@ -51,9 +51,9 @@ export const userService = {
   },
 
   // Update user
-  async updateUser(id: number, updates: Partial<User>): Promise<User | null> {
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     const { data, error } = await supabase
-      .from('Users')
+      .from('users')
       .update(updates)
       .eq('id', id)
       .select()
@@ -71,9 +71,9 @@ export const userService = {
 // Teacher operations
 export const teacherService = {
   // Get teacher by ID
-  async getTeacherById(id: number): Promise<Teacher | null> {
+  async getTeacherById(id: string): Promise<Teacher | null> {
     const { data, error } = await supabase
-      .from('Teachers')
+      .from('teachers')
       .select('*')
       .eq('id', id)
       .single()
@@ -87,11 +87,11 @@ export const teacherService = {
   },
 
   // Get teacher by user ID
-  async getTeacherByUserId(userId: number): Promise<Teacher | null> {
+  async getTeacherByUserId(userId: string): Promise<Teacher | null> {
     const { data, error } = await supabase
-      .from('Teachers')
+      .from('teachers')
       .select('*')
-      .eq('User_Id', userId)
+      .eq('user_id', userId)
       .single()
     
     if (error) {
@@ -105,7 +105,7 @@ export const teacherService = {
   // Create new teacher
   async createTeacher(teacherData: Omit<Teacher, 'id' | 'created_at'>): Promise<Teacher | null> {
     const { data, error } = await supabase
-      .from('Teachers')
+      .from('teachers')
       .insert([teacherData])
       .select()
       .single()
@@ -119,9 +119,9 @@ export const teacherService = {
   },
 
   // Update teacher
-  async updateTeacher(id: number, updates: Partial<Teacher>): Promise<Teacher | null> {
+  async updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | null> {
     const { data, error } = await supabase
-      .from('Teachers')
+      .from('teachers')
       .update(updates)
       .eq('id', id)
       .select()
@@ -139,11 +139,11 @@ export const teacherService = {
 // Class operations
 export const classService = {
   // Get all classes for a teacher
-  async getClassesByTeacherId(teacherId: number): Promise<Class[]> {
+  async getClassesByTeacherId(teacherId: string): Promise<Class[]> {
     const { data, error } = await supabase
-      .from('Classes')
+      .from('classes')
       .select('*')
-      .eq('Teacher_id', teacherId)
+      .eq('teacher_id', teacherId)
       .order('created_at', { ascending: false })
     
     if (error) {
@@ -155,9 +155,9 @@ export const classService = {
   },
 
   // Get class by ID
-  async getClassById(id: number): Promise<Class | null> {
+  async getClassById(id: string): Promise<Class | null> {
     const { data, error } = await supabase
-      .from('Classes')
+      .from('classes')
       .select('*')
       .eq('id', id)
       .single()
@@ -173,7 +173,7 @@ export const classService = {
   // Create new class
   async createClass(classData: Omit<Class, 'id' | 'created_at'>): Promise<Class | null> {
     const { data, error } = await supabase
-      .from('Classes')
+      .from('classes')
       .insert([classData])
       .select()
       .single()
@@ -187,9 +187,9 @@ export const classService = {
   },
 
   // Update class
-  async updateClass(id: number, updates: Partial<Class>): Promise<Class | null> {
+  async updateClass(id: string, updates: Partial<Class>): Promise<Class | null> {
     const { data, error } = await supabase
-      .from('Classes')
+      .from('classes')
       .update(updates)
       .eq('id', id)
       .select()
@@ -204,9 +204,9 @@ export const classService = {
   },
 
   // Delete class
-  async deleteClass(id: number): Promise<boolean> {
+  async deleteClass(id: string): Promise<boolean> {
     const { error } = await supabase
-      .from('Classes')
+      .from('classes')
       .delete()
       .eq('id', id)
     

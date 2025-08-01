@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import Cropper from 'react-easy-crop'
 import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTeacherData } from "@/hooks/useTeacherData";
 import { useClassesData } from "@/hooks/useClassesData";
 import { useSchedulesData } from "@/hooks/useSchedulesData";
@@ -40,27 +41,32 @@ interface WeeklySchedule {
 
 export default function TeacherProfile() {
   const { profilePhoto, setProfilePhoto } = useProfile();
-  const { user, teacher, loading, error, refetch } = useTeacherData(2);
+  const { user: authUser } = useAuth();
+  
+  // Get the user ID from the authenticated user
+  const userId = authUser?.id || '';
+  
+  const { user, teacher, loading, error, refetch } = useTeacherData(userId);
   const { classes: fetchedClasses, loading: classesLoading, error: classesError, refetch: refetchClasses } = useClassesData(teacher?.id || 0);
-  const { schedules, timeSlots, loading: schedulesLoading, error: schedulesError, refetch: refetchSchedules, addSchedule, deleteSchedule, updateSchedule } = useSchedulesData(2);
+  const { schedules, timeSlots, loading: schedulesLoading, error: schedulesError, refetch: refetchSchedules, addSchedule, deleteSchedule, updateSchedule } = useSchedulesData(userId);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   // Initialize profile with fetched data or defaults
   const [profile, setProfile] = useState({
-    firstName: user?.First_name || "Loading...",
-    lastName: user?.Last_name || "Loading...",
-    email: user?.Email || "Loading...",
-    phone: user?.Phone || "",
-    age: user?.Age || 0,
-    gender: user?.Gender || "",
-    address: user?.Address || "",
-    city: user?.CIty || "",
-    bio: user?.Bio || "",
-    experience: teacher?.Experience_Years || 0,
-    subject: teacher?.Subjects?.[0] || "",
+            firstName: user?.first_name || "Loading...",
+        lastName: user?.last_name || "Loading...",
+        email: user?.email || "Loading...",
+        phone: user?.phone || "",
+        age: user?.age || 0,
+        gender: user?.gender || "",
+        address: user?.address || "",
+        city: user?.city || "",
+        bio: user?.bio || "",
+        experience: teacher?.experience_years || 0,
+        subject: teacher?.subjects?.[0] || "",
     photo: profilePhoto,
-    schools: teacher?.Schools?.map(school => ({ name: school, type: "both" })) || [
+            schools: teacher?.schools?.map(school => ({ name: school, type: "both" })) || [
       { name: "Al Akhawayn University", type: "both" },
       { name: "International School of Morocco", type: "lycee" }
     ],
@@ -83,18 +89,18 @@ export default function TeacherProfile() {
     if (user && teacher) {
       setProfile(prev => ({
         ...prev,
-        firstName: user.First_name,
-        lastName: user.Last_name,
-        email: user.Email,
-        phone: user.Phone || "",
-        age: user.Age || 0,
-        gender: user.Gender || "",
-        address: user.Address || "",
-        city: user.CIty || "",
-        bio: user.Bio || "",
-        experience: teacher.Experience_Years || 0,
-        subject: teacher.Subjects?.[0] || "",
-        schools: teacher.Schools?.map(school => ({ name: school, type: "both" })) || prev.schools
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: user.phone || "",
+        age: user.age || 0,
+        gender: user.gender || "",
+        address: user.address || "",
+        city: user.city || "",
+        bio: user.bio || "",
+        experience: teacher.experience_years || 0,
+        subject: teacher.subjects?.[0] || "",
+        schools: teacher.schools?.map(school => ({ name: school, type: "both" })) || prev.schools
       }));
     }
   }, [user, teacher]);
@@ -107,12 +113,12 @@ export default function TeacherProfile() {
   // Convert fetched classes to ClassInfo format for display
   const classes: ClassInfo[] = fetchedClasses.map(cls => ({
     id: cls.id.toString(),
-    name: cls.Class_Name || '',
-    level: cls.Level || '',
-    grade: cls.Grade || '',
-    hoursPerWeek: cls.Hours || 0,
-    students: cls.Max_Students || 0,
-    school: cls.School || ''
+    name: cls.class_name || '',
+    level: cls.level || '',
+    grade: cls.grade || '',
+    hoursPerWeek: cls.hours || 0,
+    students: cls.max_students || 0,
+    school: cls.school || ''
   }));
 
   // Convert database schedules to UI format using direct mapping
@@ -127,7 +133,7 @@ export default function TeacherProfile() {
       const dayClasses = daySchedules.map(schedule => ({
         from: schedule.time_slot?.start_time || '',
         to: schedule.time_slot?.end_time || '',
-        class: schedule.class?.Class_Name || '',
+        class: schedule.class?.class_name || '',
         classroom: schedule.class_room || ''
       }));
       
@@ -276,16 +282,16 @@ export default function TeacherProfile() {
       
       // Update user data in Supabase
       const { data: updatedUser, error: userError } = await supabase
-        .from('Users')
+        .from('users')
         .update({
-          First_name: profile.firstName,
-          Last_name: profile.lastName,
-          Phone: profile.phone || null,
-          Age: profile.age || null,
-          Gender: profile.gender || null,
-          Address: profile.address || null,
-          CIty: profile.city || null,
-          Bio: profile.bio || null
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          phone: profile.phone || null,
+          age: profile.age || null,
+          gender: profile.gender || null,
+          address: profile.address || null,
+          city: profile.city || null,
+          bio: profile.bio || null
         })
         .eq('id', user.id)
         .select()
@@ -297,11 +303,11 @@ export default function TeacherProfile() {
       
       // Update teacher data in Supabase
       const { data: updatedTeacher, error: teacherError } = await supabase
-        .from('Teachers')
+        .from('teachers')
         .update({
-          Experience_Years: profile.experience || null,
-          Subjects: profile.subject ? [profile.subject] : null,
-          Schools: profile.schools.length > 0 ? profile.schools.map(school => school.name) : null
+          experience_years: profile.experience || null,
+          subjects: profile.subject ? [profile.subject] : null,
+          schools: profile.schools.length > 0 ? profile.schools.map(school => school.name) : null
         })
         .eq('id', teacher.id)
         .select()
@@ -348,19 +354,19 @@ export default function TeacherProfile() {
 
     try {
       const { data: newClassData, error } = await supabase
-        .from('Classes')
+        .from('classes')
         .insert({
-          Class_Name: newClass.name,
-          Level: newClass.level,
-          Grade: newClass.grade,
+          class_name: newClass.name,
+          level: newClass.level,
+          grade: newClass.grade,
           subject: profile.subject || 'General',
-          Description: `${newClass.level} ${newClass.grade} class`,
-          Classroom: 'TBD',
-          Hours: newClass.hoursPerWeek,
-          Max_Students: 30, // Default value
-          School: newClass.school,
-          Hourly_Payement: '50', // Default value
-          Teacher_id: teacher.id
+          description: `${newClass.level} ${newClass.grade} class`,
+          classroom: 'TBD',
+          hours: newClass.hoursPerWeek,
+          max_students: 30, // Default value
+          school: newClass.school,
+          hourly_payement: '50', // Default value
+          teacher_id: teacher.id
         })
         .select()
         .single();
@@ -516,11 +522,11 @@ export default function TeacherProfile() {
 
       if (editingScheduleId) {
         // Update existing schedule
-        await updateScheduleItem(editingScheduleId, {
-          Class_Id: parseInt(selectedClass.id),
-          class_room: newScheduleItem.classroom,
-          Notes: ''
-        });
+                  await updateScheduleItem(editingScheduleId, {
+            class_id: parseInt(selectedClass.id),
+            class_room: newScheduleItem.classroom,
+            notes: ''
+          });
         
         // Clear editing state
         setEditingScheduleId(null);
@@ -528,7 +534,7 @@ export default function TeacherProfile() {
       } else {
         // Check if there's already a schedule in this time slot
         const existingSchedule = schedules.find(schedule => 
-          schedule.Slot_Id === timeSlot.id
+          schedule.slot_id === timeSlot.id
         );
 
         if (existingSchedule) {
@@ -558,9 +564,9 @@ export default function TeacherProfile() {
   };
 
   const updateScheduleItem = async (scheduleId: number, updates: {
-    Class_Id?: number;
+    class_id?: number;
     class_room?: string;
-    Notes?: string;
+    notes?: string;
   }) => {
     try {
       await updateSchedule(scheduleId, updates);
@@ -583,7 +589,7 @@ export default function TeacherProfile() {
         
         // Confirm deletion
         const confirmed = window.confirm(
-          `Are you sure you want to remove "${scheduleToRemove.class?.Class_Name}" from ${day} ${scheduleToRemove.time_slot?.start_time}-${scheduleToRemove.time_slot?.end_time}?`
+          `Are you sure you want to remove "${scheduleToRemove.class?.class_name}" from ${day} ${scheduleToRemove.time_slot?.start_time}-${scheduleToRemove.time_slot?.end_time}?`
         );
         
         if (confirmed) {
@@ -805,7 +811,7 @@ export default function TeacherProfile() {
 
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          {user ? `${user.First_name} ${user.Last_name}'s Profile` : "Teacher Profile"}
+          {user ? `${user.first_name} ${user.last_name}'s Profile` : "Teacher Profile"}
         </h1>
         <p className="text-gray-600">Manage your personal information and class schedule</p>
         {user && (

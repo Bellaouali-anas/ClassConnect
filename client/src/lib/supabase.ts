@@ -11,43 +11,43 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types based on your actual Supabase schema
 export interface User {
-  id: number
+  id: string
   created_at: string
-  First_name: string
-  Last_name: string
-  Email: string
-  Phone?: string
-  Age?: number
-  Gender?: string
-  Address?: string
-  CIty?: string
-  Bio?: string
-  User_type?: string
+  first_name?: string
+  last_name?: string
+  email: string
+  phone?: number
+  age?: number
+  gender?: string
+  address?: string
+  city?: string
+  bio?: string
+  user_type?: string
 }
 
 export interface Teacher {
-  id: number
+  id: string
   created_at: string
-  Experience_Years?: number
-  Subjects?: string[]
-  Schools?: string[]
-  User_Id?: number
+  experience_years?: number
+  subjects?: any // JSONB
+  schools?: any // JSONB
+  user_id?: string
 }
 
 export interface Class {
-  id: number
+  id: string
   created_at: string
-  Class_Name?: string
-  Level?: string
-  Grade?: string
+  class_name?: string
+  level?: string
+  grade?: string
   subject?: string
-  Description?: string
-  Classroom?: string
-  Hours?: number
-  Max_Students?: number
-  School?: string
-  Hourly_Payement?: string
-  Teacher_id: number
+  description?: string
+  classroom?: string
+  hours?: number
+  max_students?: number
+  school?: string
+  hourly_payement?: number
+  teacher_id?: string
 }
 
 export interface TimeSlot {
@@ -59,13 +59,13 @@ export interface TimeSlot {
 }
 
 export interface Schedule {
-  id: number
+  id: string
   created_at: string
-  User_Id: number
-  Class_Id: number
-  Slot_Id: number
+  user_id?: string
+  class_id?: string
+  slot_id?: number
   class_room?: string
-  Notes?: string
+  notes?: string
 }
 
 // Extended interfaces for joined data

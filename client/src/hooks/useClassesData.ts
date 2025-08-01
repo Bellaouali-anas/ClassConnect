@@ -20,9 +20,9 @@ export function useClassesData(teacherId: number) {
 
       // Fetch classes data for the specific teacher
       const { data: classesData, error: classesError } = await supabase
-        .from('Classes')
+        .from('classes')
         .select('*')
-        .eq('Teacher_id', teacherId)
+        .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
       if (classesError) {

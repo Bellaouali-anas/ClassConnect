@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { GraduationCap, Home, Users, BookOpen, Calendar, ClipboardList, BarChart3, Settings } from "lucide-react";
+import { GraduationCap, Home, Users, BookOpen, Calendar, ClipboardList, BarChart3, Settings, LogOut } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ const navigation = [
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { profilePhoto } = useProfile();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -42,12 +44,19 @@ export default function Layout({ children }: LayoutProps) {
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={profilePhoto} />
                   <AvatarFallback className="bg-primary text-white font-medium text-sm">
-                    AB
+                    {user?.user_metadata?.first_name?.[0]}{user?.user_metadata?.last_name?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-gray-800">Mr. Anas Bellaouali</p>
-                  <p className="text-sm text-gray-600">Math Teacher</p>
+                  <p className="font-medium text-gray-800">
+                    {user?.user_metadata?.first_name && user?.user_metadata?.last_name 
+                      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+                      : user?.email || 'User'
+                    }
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {user?.user_metadata?.user_type || 'User'}
+                  </p>
                 </div>
               </a>
             </Link>
@@ -77,14 +86,21 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
 
-          {/* Settings */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
+          {/* Settings & Logout */}
+          <div className="mt-8 pt-6 border-t border-gray-200 space-y-2">
             <Link href="/settings">
               <a className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 <Settings className="w-5 h-5" />
                 <span>Settings</span>
               </a>
             </Link>
+            <button
+              onClick={signOut}
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors w-full text-left"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
       </aside>

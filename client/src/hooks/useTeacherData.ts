@@ -8,7 +8,7 @@ export interface TeacherData {
   error: string | null;
 }
 
-export function useTeacherData(userId: number = 2) {
+export function useTeacherData(userId: string) {
   const [data, setData] = useState<TeacherData>({
     user: null,
     teacher: null,
@@ -22,7 +22,7 @@ export function useTeacherData(userId: number = 2) {
 
       // Fetch user data
       const { data: userData, error: userError } = await supabase
-        .from('Users')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -33,9 +33,9 @@ export function useTeacherData(userId: number = 2) {
 
       // Fetch teacher data
       const { data: teacherData, error: teacherError } = await supabase
-        .from('Teachers')
+        .from('teachers')
         .select('*')
-        .eq('User_Id', userId)
+        .eq('user_id', userId)
         .single();
 
       if (teacherError && teacherError.code !== 'PGRST116') { // PGRST116 is "not found"
